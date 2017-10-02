@@ -1,0 +1,82 @@
+---
+- hosts: web
+  vars:
+    system_packages:
+      - postgresql
+      - postgresql-contrib
+      - libpq-dev
+      - python-psycopg2
+      - python-pip
+    dbname: gcs
+    dbuser: django
+    dbpassword: reallyveryhardpassword
+  become: yes    
+  tasks:
+    - name: Install system packages
+      apt: pkg={{ item }} update-cache=yes
+      with_items: "{{ system_packages }}"
+
+    - name: install python packages
+      pip:
+        name: django
+
+    - name: Create postgres db
+      become: true
+      become_user: postgres
+      postgresql_db:
+        name: gcs
+
+    - name: Create postgres user
+      become: true
+      become_user: postgres
+      postgresql_user:
+        name: django
+        password: reallyveryhardpassword
+        role_attr_flags: CREATEDB,NOSUPERUSER    
+
+    - name: Move and rename
+      template:
+        src: templates/settings.py.j2
+        dest: /vagrant/djangobasico/settings.py
+        owner: root
+        group: root
+        mode: '0600'
+      notify:
+        - Migrate
+        - Load fixtures
+        - Start server
+
+  handlers: 
+    - name: Migrate
+      django_manage:
+        command: migrate
+        app_path: /vagrant
+
+    - name: Load fixtures
+      django_manage:
+        command: loaddata
+        app_path: /vagrant
+        fixtures: db.fixture.json
+      
+    - name: Start server
+      django_manage:
+        command: runserver
+        app_path: /vagrant
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
